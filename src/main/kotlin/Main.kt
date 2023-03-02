@@ -27,7 +27,7 @@ fun main() = runBlocking {
         messages = listOf(
             ChatMessage(
                 role = ChatRole.System,
-                content = "You are a helpful assistant that writes my german essays."
+                content = "You are a helpful assistant that will answer anything."
             ),
             ChatMessage(
                 role = ChatRole.User,
