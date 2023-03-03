@@ -16,7 +16,7 @@ import java.awt.datatransfer.StringSelection
 @OptIn(BetaOpenAI::class)
 fun main() = runBlocking {
     val apiKey = System.getenv("OPENAI_API_KEY")
-    val token = requireNotNull(apiKey) { "OPENAI_API_KEY environment variable must be set." }
+    val token = requireNotNull(apiKey) { throw NullPointerException("OPENAI_API_KEY environment variable not set.") }
     val openAI = OpenAI(OpenAIConfig(token, LogLevel.None))
     val clipboard = Toolkit.getDefaultToolkit().systemClipboard
     var output = ""
@@ -35,7 +35,7 @@ fun main() = runBlocking {
                     Dispatchers.IO
                 ) {
                     transferable.getTransferData(DataFlavor.stringFlavor)
-                } as String).also { println(it) } else ""
+                } as String).also { println(it) } else throw IllegalArgumentException("Clipboard does not contain text.")
             )
         )
     )
