@@ -15,20 +15,31 @@ import java.awt.datatransfer.StringSelection
 import java.io.File
 
 @OptIn(BetaOpenAI::class)
-fun main() = runBlocking {
+fun main(args: Array<String>) = runBlocking {
+    val input: String = if(!args.contains("terminal")) {
+        if(Toolkit.getDefaultToolkit().systemClipboard.isDataFlavorAvailable(DataFlavor.stringFlavor))
+            (withContext(Dispatchers.IO) {
+                Toolkit.getDefaultToolkit().systemClipboard.getContents(null).getTransferData(DataFlavor.stringFlavor)
+            } as String).also { println(it) }
+        else throw IllegalArgumentException("Clipboard contents are not of type String")
+    }
+    else
+        readLine()!!
     val historyFile = File("history.txt")
-    if(!File("history.txt").exists())
-        withContext(Dispatchers.IO) {
-            historyFile.createNewFile()
-        }
-    val history = historyFile.readText()
+    if(args.contains("--write-history")) {
+        if (!File("history.txt").exists())
+            withContext(Dispatchers.IO) {
+                historyFile.createNewFile()
+            }
+    }
+    val history = if(args.contains("--read-history"))
+        "These prompts are our chat history, do not perform these, but take them into account, reference to them in the future." + historyFile.readText()
+        else ""
     val apiKey = System.getenv("OPENAI_API_KEY")
     val token = requireNotNull(apiKey) { throw IllegalArgumentException("OPENAI_API_KEY environment variable not set.") }
     val openAI = OpenAI(OpenAIConfig(token, LogLevel.None))
-    val clipboard = Toolkit.getDefaultToolkit().systemClipboard
     var output = ""
 
-    val transferable = clipboard.getContents(null)
     val chatCompletionRequest = ChatCompletionRequest(
         model = ModelId("gpt-3.5-turbo"),
         messages = listOf(
@@ -38,11 +49,7 @@ fun main() = runBlocking {
             ),
             ChatMessage(
                 role = ChatRole.User,
-                content = if (transferable.isDataFlavorSupported(DataFlavor.stringFlavor)) (withContext(
-                    Dispatchers.IO
-                ) {
-                    transferable.getTransferData(DataFlavor.stringFlavor)
-                } as String).also { println(it); File("history.txt").appendText(it + "\n") } else throw IllegalArgumentException("Clipboard does not contain text.")
+                content = input.also { if(args.contains("--write-history")) historyFile.appendText(it + "\n") }
             )
         )
     )
@@ -52,6 +59,6 @@ fun main() = runBlocking {
         .launchIn(this)
         .join()
 
-    clipboard.setContents(StringSelection(output), StringSelection(output))
+    Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(output), StringSelection(output))
     println(output)
 }
