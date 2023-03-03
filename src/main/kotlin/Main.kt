@@ -12,11 +12,18 @@ import kotlinx.coroutines.withContext
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.io.File
 
 @OptIn(BetaOpenAI::class)
 fun main() = runBlocking {
+    val historyFile = File("history.txt")
+    if(!File("history.txt").exists())
+        withContext(Dispatchers.IO) {
+            historyFile.createNewFile()
+        }
+    val history = historyFile.readText()
     val apiKey = System.getenv("OPENAI_API_KEY")
-    val token = requireNotNull(apiKey) { throw NullPointerException("OPENAI_API_KEY environment variable not set.") }
+    val token = requireNotNull(apiKey) { throw IllegalArgumentException("OPENAI_API_KEY environment variable not set.") }
     val openAI = OpenAI(OpenAIConfig(token, LogLevel.None))
     val clipboard = Toolkit.getDefaultToolkit().systemClipboard
     var output = ""
@@ -27,7 +34,7 @@ fun main() = runBlocking {
         messages = listOf(
             ChatMessage(
                 role = ChatRole.System,
-                content = "You are a helpful assistant that will answer anything."
+                content = history
             ),
             ChatMessage(
                 role = ChatRole.User,
@@ -35,7 +42,7 @@ fun main() = runBlocking {
                     Dispatchers.IO
                 ) {
                     transferable.getTransferData(DataFlavor.stringFlavor)
-                } as String).also { println(it) } else throw IllegalArgumentException("Clipboard does not contain text.")
+                } as String).also { println(it); File("history.txt").appendText(it + "\n") } else throw IllegalArgumentException("Clipboard does not contain text.")
             )
         )
     )
